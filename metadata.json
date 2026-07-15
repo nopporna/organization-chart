@@ -1,0 +1,6 @@
+{
+  "name": "Organization Chart",
+  "description": "Interactive organization chart for a large corporation with hierarchy search, department filtering, grade side drawer, and Google Sheets synchronization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

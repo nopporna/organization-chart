@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-vibrant-peach: #FFB7B2;
+  --color-vibrant-sky: #B2E2F2;
+  --color-vibrant-sage: #E2F0CB;
+  --color-vibrant-pastel-blue: #AEC6CF;
+  --color-vibrant-pink: #FFD1DC;
+  --color-vibrant-yellow: #FFE8A3;
+  --color-vibrant-cream: #FDFCF0;
+  --color-vibrant-dark: #2D3436;
+}
+
+/* Org chart scroll area — full bidirectional scroll for wide trees */
+#org-tree-canvas {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar to keep it looking beautiful in the tree view */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(254, 243, 199, 0.3); /* soft amber-pastel track */
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.4); /* soft amber-pastel thumb */
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.6);
+}
