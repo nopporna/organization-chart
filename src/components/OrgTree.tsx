@@ -60,13 +60,23 @@ export default function OrgTree({
     [employeePool]
   );
 
+  const compareEmployees = (a: Employee, b: Employee) => {
+    const byDept = a.department.localeCompare(b.department, undefined, { sensitivity: 'base' });
+    if (byDept !== 0) return byDept;
+    const byUnit = (a.unit || '').localeCompare(b.unit || '', undefined, { sensitivity: 'base' });
+    if (byUnit !== 0) return byUnit;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  };
+
   // Roots are employees with no manager, or whose manager is outside the current pool.
   const rootEmployees = useMemo(
     () =>
-      employeePool.filter((emp) => {
-        if (!emp.reportsToId) return true;
-        return !employeePoolIds.has(emp.reportsToId);
-      }),
+      employeePool
+        .filter((emp) => {
+          if (!emp.reportsToId) return true;
+          return !employeePoolIds.has(emp.reportsToId);
+        })
+        .sort(compareEmployees),
     [employeePool, employeePoolIds]
   );
 
@@ -163,7 +173,9 @@ export default function OrgTree({
   };
 
   const renderNodeCard = (emp: Employee) => {
-    const directChildren = employeePool.filter((child) => child.reportsToId === emp.id);
+    const directChildren = employeePool
+      .filter((child) => child.reportsToId === emp.id)
+      .sort(compareEmployees);
     const isExpanded = expandedNodeIds[emp.id] !== false; // defaults to true
     const totalTeamCount = getSubordinateCount(emp.id);
     const isMatched = matchesFilter(emp);

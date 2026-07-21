@@ -283,14 +283,18 @@ export default function App() {
     setActiveEmployee(template);
   };
 
-  const departmentsList = Array.from(new Set(employees.map((e) => e.department))).filter(Boolean);
+  const departmentsList = Array.from(new Set(employees.map((e) => e.department)))
+    .filter(Boolean)
+    .sort((a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   const unitsList = Array.from(
     new Set(
       employees
         .filter((e) => !selectedDepartment || e.department === selectedDepartment)
         .map((e) => e.unit)
     )
-  ).filter(Boolean);
+  )
+    .filter(Boolean)
+    .sort((a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
   return (
     <div className="min-h-screen bg-vibrant-cream font-sans text-vibrant-dark flex flex-col selection:bg-vibrant-yellow/40" id="app-root">

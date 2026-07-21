@@ -29,9 +29,15 @@ export default function StatSummary({ employees }: StatSummaryProps) {
     return acc;
   }, {} as Record<string, number>);
 
-  const sortedDeps = Object.entries(departmentStats).sort((a, b) => b[1] - a[1]);
-  const sortedGrades = Object.entries(gradeStats).sort((a, b) => b[1] - a[1]);
-  const sortedUnits = Object.entries(unitStats).sort((a, b) => b[1] - a[1]);
+  const sortedDeps = Object.entries(departmentStats).sort((a, b) =>
+    a[0].localeCompare(b[0], undefined, { sensitivity: 'base' })
+  );
+  const sortedGrades = Object.entries(gradeStats).sort((a, b) =>
+    a[0].localeCompare(b[0], undefined, { sensitivity: 'base' })
+  );
+  const sortedUnits = Object.entries(unitStats).sort((a, b) =>
+    a[0].localeCompare(b[0], undefined, { sensitivity: 'base' })
+  );
 
   return (
     <div className="bg-white/70 border-2 border-vibrant-yellow rounded-[2rem] p-6 shadow-sm mb-6 animate-fade-in" id="stat-summary">
