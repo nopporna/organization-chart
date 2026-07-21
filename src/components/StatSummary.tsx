@@ -15,21 +15,23 @@ export default function StatSummary({ employees }: StatSummaryProps) {
     return acc;
   }, {} as Record<string, number>);
 
+  // Unit counts (department / unit)
+  const unitStats = employees.reduce((acc, curr) => {
+    if (!curr.unit) return acc;
+    const key = curr.department ? `${curr.department} / ${curr.unit}` : curr.unit;
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   // Grade counts
   const gradeStats = employees.reduce((acc, curr) => {
     acc[curr.grade] = (acc[curr.grade] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  // Role counts
-  const roleStats = employees.reduce((acc, curr) => {
-    acc[curr.role] = (acc[curr.role] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
   const sortedDeps = Object.entries(departmentStats).sort((a, b) => b[1] - a[1]);
   const sortedGrades = Object.entries(gradeStats).sort((a, b) => b[1] - a[1]);
-  const sortedRoles = Object.entries(roleStats).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const sortedUnits = Object.entries(unitStats).sort((a, b) => b[1] - a[1]);
 
   return (
     <div className="bg-white/70 border-2 border-vibrant-yellow rounded-[2rem] p-6 shadow-sm mb-6 animate-fade-in" id="stat-summary">
@@ -71,8 +73,8 @@ export default function StatSummary({ employees }: StatSummaryProps) {
             <Briefcase className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">UNIQUE ROLES</p>
-            <p className="text-3xl font-display font-black text-vibrant-dark">{Object.keys(roleStats).length}</p>
+            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">UNITS</p>
+            <p className="text-3xl font-display font-black text-vibrant-dark">{Object.keys(unitStats).length}</p>
           </div>
         </div>
 
@@ -129,16 +131,16 @@ export default function StatSummary({ employees }: StatSummaryProps) {
           </div>
         </div>
 
-        {/* Top Roles */}
+        {/* Unit Breakdown */}
         <div className="bg-white p-5 rounded-[2rem] border-2 border-vibrant-yellow shadow-sm">
-          <h4 className="font-display font-black text-sm text-vibrant-dark mb-4 border-b-2 border-vibrant-cream pb-2">Top 5 Corporate Roles</h4>
+          <h4 className="font-display font-black text-sm text-vibrant-dark mb-4 border-b-2 border-vibrant-cream pb-2">Unit Breakdown</h4>
           <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-            {sortedRoles.map(([role, count]) => {
+            {sortedUnits.map(([unit, count]) => {
               const pct = totalCount ? Math.round((count / totalCount) * 100) : 0;
               return (
-                <div key={role} className="text-xs">
+                <div key={unit} className="text-xs">
                   <div className="flex justify-between text-vibrant-dark mb-1 font-bold">
-                    <span className="truncate max-w-[180px]">{role}</span>
+                    <span className="truncate max-w-[180px]">{unit}</span>
                     <span className="text-slate-400">{count} ({pct}%)</span>
                   </div>
                   <div className="w-full bg-[#F3F4F6] h-2 rounded-full overflow-hidden">

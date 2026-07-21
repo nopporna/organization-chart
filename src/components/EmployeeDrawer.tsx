@@ -64,6 +64,7 @@ export default function EmployeeDrawer({
         nickname: formData.nickname || '',
         email: formData.email || '',
         department: formData.department || '',
+        unit: formData.unit || '',
         role: formData.role || '',
         grade: formData.grade || '',
         reportsToId: formData.reportsToId || '',
@@ -227,6 +228,19 @@ export default function EmployeeDrawer({
                   />
                 </div>
                 <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Unit</label>
+                  <input
+                    type="text"
+                    value={formData.unit || ''}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    placeholder="e.g. Unit A, PMO, Security"
+                    className="w-full bg-[#F3F4F6] border-2 border-transparent focus:border-vibrant-pastel-blue rounded-xl px-3 py-2 text-xs text-vibrant-dark focus:outline-hidden font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Grade Level</label>
                   <input
                     type="text"
@@ -236,16 +250,15 @@ export default function EmployeeDrawer({
                     className="w-full bg-[#F3F4F6] border-2 border-transparent focus:border-vibrant-pastel-blue rounded-xl px-3 py-2 text-xs text-vibrant-dark focus:outline-hidden font-black uppercase"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Job Title / Role</label>
-                <input
-                  type="text"
-                  value={formData.role || ''}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full bg-[#F3F4F6] border-2 border-transparent focus:border-vibrant-pastel-blue rounded-xl px-3 py-2 text-xs text-vibrant-dark focus:outline-hidden font-medium"
-                />
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1">Job Title / Role</label>
+                  <input
+                    type="text"
+                    value={formData.role || ''}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className="w-full bg-[#F3F4F6] border-2 border-transparent focus:border-vibrant-pastel-blue rounded-xl px-3 py-2 text-xs text-vibrant-dark focus:outline-hidden font-medium"
+                  />
+                </div>
               </div>
 
               <div>
@@ -401,7 +414,7 @@ export default function EmployeeDrawer({
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-3 text-xs text-vibrant-dark font-bold">
                     <div className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md">
                       <MapPin className="w-3.5 h-3.5 text-vibrant-sky" />
-                      <span>{employee.department}</span>
+                      <span>{employee.department}{employee.unit ? ` / ${employee.unit}` : ''}</span>
                     </div>
                     <div className="flex items-center gap-1 uppercase font-black text-[#5d8b9d] bg-vibrant-pastel-blue/20 px-2.5 py-0.5 rounded-full border border-vibrant-pastel-blue/30 text-[10px]">
                       <Award className="w-3 h-3 text-[#5d8b9d]" />

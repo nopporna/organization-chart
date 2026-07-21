@@ -6,17 +6,19 @@ interface GradeDrawerProps {
   grade: string | null;
   employees: Employee[];
   selectedDepartment?: string;
+  selectedUnit?: string;
   onClose: () => void;
   onSelectEmployee: (emp: Employee) => void;
 }
 
-export default function GradeDrawer({ grade, employees, selectedDepartment = '', onClose, onSelectEmployee }: GradeDrawerProps) {
+export default function GradeDrawer({ grade, employees, selectedDepartment = '', selectedUnit = '', onClose, onSelectEmployee }: GradeDrawerProps) {
   if (!grade) return null;
 
   const filteredEmployees = employees.filter(
     (emp) =>
       emp.grade.toLowerCase() === grade.toLowerCase() &&
-      (!selectedDepartment || emp.department === selectedDepartment)
+      (!selectedDepartment || emp.department === selectedDepartment) &&
+      (!selectedUnit || emp.unit === selectedUnit)
   );
 
   return (
@@ -42,7 +44,8 @@ export default function GradeDrawer({ grade, employees, selectedDepartment = '',
               </h3>
               <p className="text-xs text-slate-400 font-bold">
                 {filteredEmployees.length} {filteredEmployees.length === 1 ? 'employee' : 'employees'}
-                {selectedDepartment ? ` in ${selectedDepartment}` : ''} at this grade level
+                {selectedDepartment ? ` in ${selectedDepartment}` : ''}
+                {selectedUnit ? ` / ${selectedUnit}` : ''} at this grade level
               </p>
             </div>
           </div>
@@ -104,7 +107,9 @@ export default function GradeDrawer({ grade, employees, selectedDepartment = '',
                   <div className="mt-2.5 space-y-1.5 font-bold">
                     <div className="flex items-center gap-1.5 text-[11px] text-vibrant-dark">
                       <MapPin className="w-3 h-3 text-vibrant-sky" />
-                      <span className="truncate">{emp.department}</span>
+                      <span className="truncate">
+                        {emp.department}{emp.unit ? ` / ${emp.unit}` : ''}
+                      </span>
                     </div>
                     {emp.email && (
                       <div className="flex items-center gap-1.5 text-[11px] text-vibrant-dark">

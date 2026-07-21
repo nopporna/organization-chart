@@ -73,27 +73,47 @@ function parseCsv(text: string): string[][] {
     .map(parseCsvLine);
 }
 
+function employeeToRow(employee: Employee): string[] {
+  return [
+    employee.id,
+    employee.name,
+    employee.nickname,
+    employee.email,
+    employee.department,
+    employee.unit,
+    employee.role,
+    employee.grade,
+    employee.reportsToId,
+    employee.photoUrl,
+    employee.historicalTitles.join('; '),
+    employee.bio,
+  ];
+}
+
 function mapRowsToEmployees(values: string[][]): { employees: Employee[]; rawRows: string[][] } {
+  // Expected columns:
+  // A:ID B:Name C:Nickname D:Email E:Department F:Unit G:Role H:Grade I:ReportsToID J:PhotoURL K:HistoricalTitles L:Bio
   const employees: Employee[] = values
     .map((row) => {
       const id = row[0] || '';
-      if (!id) return null;
+      if (!id || id.toLowerCase() === 'id') return null;
 
       const name = row[1] || '';
       const nickname = row[2] || '';
       const email = row[3] || '';
       const department = row[4] || '';
-      const role = row[5] || '';
-      const grade = row[6] || '';
-      const reportsToId = row[7] || '';
-      const photoUrl = row[8] || '';
+      const unit = row[5] || '';
+      const role = row[6] || '';
+      const grade = row[7] || '';
+      const reportsToId = row[8] || '';
+      const photoUrl = row[9] || '';
 
-      const rawHistory = row[9] || '';
+      const rawHistory = row[10] || '';
       const historicalTitles = rawHistory
         ? rawHistory.split(';').map((t) => t.trim()).filter(Boolean)
         : [];
 
-      const bio = row[10] || '';
+      const bio = row[11] || '';
 
       return {
         id,
@@ -101,6 +121,7 @@ function mapRowsToEmployees(values: string[][]): { employees: Employee[]; rawRow
         nickname,
         email,
         department,
+        unit,
         role,
         grade,
         reportsToId,
@@ -170,8 +191,8 @@ export async function fetchEmployeesFromSheet(
   sheetName: string,
   accessToken: string
 ): Promise<{ employees: Employee[]; rawRows: string[][] }> {
-  // We fetch A2:K to skip the header row.
-  const range = `'${sheetName}'!A2:K2000`;
+  // We fetch A2:L to skip the header row.
+  const range = `'${sheetName}'!A2:L2000`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`;
   
   const response = await fetch(url, {
@@ -198,7 +219,7 @@ export async function updateEmployeeReportsTo(
   newReportsToId: string
 ): Promise<void> {
   const rowNum = employeeIndexInFetchedArray + 2; // +2 because range starts at A2
-  const cellRange = `'${sheetName}'!H${rowNum}`; // Column H is ReportsToID
+  const cellRange = `'${sheetName}'!I${rowNum}`; // Column I is ReportsToID
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(cellRange)}?valueInputOption=USER_ENTERED`;
 
   const response = await fetch(url, {
@@ -228,23 +249,8 @@ export async function updateEmployeeRow(
   employee: Employee
 ): Promise<void> {
   const rowNum = employeeIndexInFetchedArray + 2;
-  const range = `'${sheetName}'!A${rowNum}:K${rowNum}`;
+  const range = `'${sheetName}'!A${rowNum}:L${rowNum}`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
-
-  const historyString = employee.historicalTitles.join('; ');
-  const rowValue = [
-    employee.id,
-    employee.name,
-    employee.nickname,
-    employee.email,
-    employee.department,
-    employee.role,
-    employee.grade,
-    employee.reportsToId,
-    employee.photoUrl,
-    historyString,
-    employee.bio,
-  ];
 
   const response = await fetch(url, {
     method: 'PUT',
@@ -255,7 +261,7 @@ export async function updateEmployeeRow(
     body: JSON.stringify({
       range,
       majorDimension: 'ROWS',
-      values: [rowValue],
+      values: [employeeToRow(employee)],
     }),
   });
 
@@ -271,23 +277,8 @@ export async function addEmployeeRow(
   accessToken: string,
   employee: Employee
 ): Promise<void> {
-  const range = `'${sheetName}'!A:K`;
+  const range = `'${sheetName}'!A:L`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
-
-  const historyString = employee.historicalTitles.join('; ');
-  const rowValue = [
-    employee.id,
-    employee.name,
-    employee.nickname,
-    employee.email,
-    employee.department,
-    employee.role,
-    employee.grade,
-    employee.reportsToId,
-    employee.photoUrl,
-    historyString,
-    employee.bio,
-  ];
 
   const response = await fetch(url, {
     method: 'POST',
@@ -298,7 +289,7 @@ export async function addEmployeeRow(
     body: JSON.stringify({
       range,
       majorDimension: 'ROWS',
-      values: [rowValue],
+      values: [employeeToRow(employee)],
     }),
   });
 
@@ -315,7 +306,7 @@ export async function deleteEmployeeRow(
   employeeIndexInFetchedArray: number
 ): Promise<void> {
   const rowNum = employeeIndexInFetchedArray + 2;
-  const range = `'${sheetName}'!A${rowNum}:K${rowNum}`;
+  const range = `'${sheetName}'!A${rowNum}:L${rowNum}`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:clear`;
 
   const response = await fetch(url, {
@@ -363,6 +354,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
     'Nickname',
     'Email',
     'Department',
+    'Unit',
     'Role',
     'Grade',
     'ReportsToID',
@@ -378,6 +370,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'EC',
       'board@largecorp.com',
       'Executive Committee',
+      'Board',
       'Executive Committee',
       'EC',
       '',
@@ -391,6 +384,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'ต้น',
       'narit.t@largecorp.com',
       'ASD',
+      'Unit A',
       'Division Manager',
       'DVM',
       'EMP001',
@@ -404,6 +398,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'เอียด',
       'anuwat.e@largecorp.com',
       'CPO',
+      'PMO',
       'Head of Office',
       'HO',
       'EMP001',
@@ -417,6 +412,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'Breeze',
       'soemsak.b@largecorp.com',
       'DGE',
+      'Platform',
       'Division Manager',
       'DVM',
       'EMP001',
@@ -430,6 +426,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'ตาล',
       'chatchawal.t@largecorp.com',
       'DGI',
+      'Security',
       'Division Manager',
       'DVM',
       'EMP001',
@@ -443,6 +440,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'บอย',
       'seehasak.b@largecorp.com',
       'ASD',
+      'Unit A',
       'Unit Manager',
       'UM',
       'EMP002',
@@ -456,6 +454,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'นา',
       'chantana.n@largecorp.com',
       'ASD',
+      'Unit B',
       'Unit Manager',
       'UM',
       'EMP002',
@@ -469,6 +468,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'เชอรี่',
       'ratchadaporn.c@largecorp.com',
       'ASD',
+      'Unit C',
       'Unit Manager',
       'UM',
       'EMP002',
@@ -482,6 +482,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'ปาย',
       'nuttachart.p@largecorp.com',
       'ASD',
+      'Unit D',
       'Unit Manager',
       'UM',
       'EMP002',
@@ -495,6 +496,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'M',
       'patcharapon.m@largecorp.com',
       'ASD',
+      'Unit D',
       'SAP ABAPER',
       'A2',
       'EMP009',
@@ -508,6 +510,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'Ant',
       'jirayus.a@largecorp.com',
       'ASD',
+      'Unit D',
       'SAP ABAPER',
       'A2',
       'EMP010',
@@ -521,6 +524,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'Gap',
       'jeeravich.g@largecorp.com',
       'ASD',
+      'Unit D',
       'SAP ABAPER',
       'A2',
       'EMP011',
@@ -534,6 +538,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'Ploy',
       'pattarawan.p@largecorp.com',
       'CPO',
+      'PMO',
       'Project Coordinator',
       'B1',
       'EMP003',
@@ -547,6 +552,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'Nut',
       'worawut.n@largecorp.com',
       'DGE',
+      'Frontend',
       'React Developer',
       'A3',
       'EMP004',
@@ -560,6 +566,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'Tee',
       'kittisak.t@largecorp.com',
       'DGE',
+      'Platform',
       'DevOps Architect',
       'B4',
       'EMP004',
@@ -573,6 +580,7 @@ export async function createDemoSpreadsheet(accessToken: string): Promise<{ spre
       'Ice',
       'siriwan.i@largecorp.com',
       'DGI',
+      'Security',
       'Security Engineer',
       'B1',
       'EMP005',

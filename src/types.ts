@@ -4,6 +4,7 @@ export interface Employee {
   nickname: string;
   email: string;
   department: string;
+  unit: string; // sub-team under department
   role: string;
   grade: string; // e.g. "EC", "DVM", "HO", "UM", "A1", "A2", "A3", "B1", "B2", "B4" etc
   reportsToId: string; // ID of the manager, empty string if root

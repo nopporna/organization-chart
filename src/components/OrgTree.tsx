@@ -10,6 +10,7 @@ interface OrgTreeProps {
   employees: Employee[];
   searchQuery: string;
   selectedDepartment: string;
+  selectedUnit: string;
   expandedNodeIds: Record<string, boolean>;
   onToggleExpand: (id: string) => void;
   onSelectEmployee: (emp: Employee) => void;
@@ -22,6 +23,7 @@ export default function OrgTree({
   employees,
   searchQuery,
   selectedDepartment,
+  selectedUnit,
   expandedNodeIds,
   onToggleExpand,
   onSelectEmployee,
@@ -46,9 +48,12 @@ export default function OrgTree({
   }, []);
 
   const employeePool = useMemo(() => {
-    if (!selectedDepartment) return employees;
-    return employees.filter((emp) => emp.department === selectedDepartment);
-  }, [employees, selectedDepartment]);
+    return employees.filter((emp) => {
+      const matchesDept = !selectedDepartment || emp.department === selectedDepartment;
+      const matchesUnit = !selectedUnit || emp.unit === selectedUnit;
+      return matchesDept && matchesUnit;
+    });
+  }, [employees, selectedDepartment, selectedUnit]);
 
   const employeePoolIds = useMemo(
     () => new Set(employeePool.map((emp) => emp.id)),
@@ -211,8 +216,15 @@ export default function OrgTree({
 
           {/* Title or Division */}
           <h3 className="font-display font-black text-[10px] text-slate-400 uppercase tracking-tighter truncate max-w-full">
-            {emp.role.includes('Manager') || emp.role.includes('Director') || emp.role.includes('Committee') ? emp.department : emp.role}
+            {emp.role.includes('Manager') || emp.role.includes('Director') || emp.role.includes('Committee')
+              ? emp.department
+              : emp.role}
           </h3>
+          {emp.unit && (
+            <p className="text-[9px] text-slate-400 font-bold truncate max-w-full mt-0.5">
+              {emp.unit}
+            </p>
+          )}
 
           {/* Employee Name */}
           <p className="font-sans font-black text-sm text-vibrant-dark mt-1 truncate max-w-full">
@@ -348,11 +360,15 @@ export default function OrgTree({
           <AlertCircle className="w-12 h-12 stroke-1 opacity-60" />
           <div>
             <p className="text-base font-semibold">
-              {selectedDepartment ? `No employees found in ${selectedDepartment}` : 'No Organization Data Detected'}
+              {selectedUnit
+                ? `No employees found in ${selectedDepartment ? `${selectedDepartment} / ` : ''}${selectedUnit}`
+                : selectedDepartment
+                  ? `No employees found in ${selectedDepartment}`
+                  : 'No Organization Data Detected'}
             </p>
             <p className="text-xs max-w-sm mt-1">
-              {selectedDepartment
-                ? 'Try selecting a different department or clear the department filter.'
+              {selectedDepartment || selectedUnit
+                ? 'Try selecting a different department/unit or clear the filters.'
                 : "Please connect a valid Google Sheet or click the 'Create Sample Sheet' button above to seed the corporation's chart."}
             </p>
           </div>

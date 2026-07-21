@@ -25,6 +25,7 @@ export default function App() {
   // Filtering and Views
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState('');
   const [showSummary, setShowSummary] = useState(false);
 
   // Active drawers
@@ -267,6 +268,7 @@ export default function App() {
       nickname: '',
       email: '',
       department: selectedDepartment || 'ASD',
+      unit: selectedUnit || '',
       role: 'Consultant',
       grade: 'A1',
       reportsToId: employees[0]?.id || '',
@@ -279,6 +281,13 @@ export default function App() {
   };
 
   const departmentsList = Array.from(new Set(employees.map((e) => e.department))).filter(Boolean);
+  const unitsList = Array.from(
+    new Set(
+      employees
+        .filter((e) => !selectedDepartment || e.department === selectedDepartment)
+        .map((e) => e.unit)
+    )
+  ).filter(Boolean);
 
   return (
     <div className="min-h-screen bg-vibrant-cream font-sans text-vibrant-dark flex flex-col selection:bg-vibrant-yellow/40" id="app-root">
@@ -351,13 +360,29 @@ export default function App() {
 
               <select
                 value={selectedDepartment}
-                onChange={(e) => setSelectedDepartment(e.target.value)}
+                onChange={(e) => {
+                  setSelectedDepartment(e.target.value);
+                  setSelectedUnit('');
+                }}
                 className="bg-[#F3F4F6] border-2 border-transparent focus:border-vibrant-pastel-blue rounded-xl px-3 py-2 text-xs font-bold text-vibrant-dark focus:outline-hidden cursor-pointer"
               >
                 <option value="">All Departments</option>
                 {departmentsList.map((dep) => (
                   <option key={dep} value={dep}>
                     {dep} Department
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={selectedUnit}
+                onChange={(e) => setSelectedUnit(e.target.value)}
+                className="bg-[#F3F4F6] border-2 border-transparent focus:border-vibrant-pastel-blue rounded-xl px-3 py-2 text-xs font-bold text-vibrant-dark focus:outline-hidden cursor-pointer"
+              >
+                <option value="">All Units</option>
+                {unitsList.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {unit}
                   </option>
                 ))}
               </select>
@@ -421,6 +446,7 @@ export default function App() {
             employees={employees}
             searchQuery={searchQuery}
             selectedDepartment={selectedDepartment}
+            selectedUnit={selectedUnit}
             expandedNodeIds={expandedNodeIds}
             onToggleExpand={handleToggleExpand}
             onSelectEmployee={(emp) => {
@@ -473,6 +499,7 @@ export default function App() {
         grade={activeGrade}
         employees={employees}
         selectedDepartment={selectedDepartment}
+        selectedUnit={selectedUnit}
         onClose={() => setActiveGrade(null)}
         onSelectEmployee={(emp) => {
           setActiveEmployee(emp);
