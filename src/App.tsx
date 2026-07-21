@@ -192,10 +192,13 @@ export default function App() {
         if (isNew) {
           await addEmployeeRow(spreadsheetId, sheetName, accessToken, updatedEmp);
         } else {
-          const index = rawSheetRows.findIndex((row) => row[0] === updatedEmp.id);
-          if (index !== -1) {
-            await updateEmployeeRow(spreadsheetId, sheetName, accessToken, index, updatedEmp);
+          const index = rawSheetRows.findIndex((row) => String(row[0] || '').trim() === updatedEmp.id.trim());
+          if (index === -1) {
+            throw new Error(
+              `Could not find employee ID "${updatedEmp.id}" in the Google Sheet. Click refresh and try again.`
+            );
           }
+          await updateEmployeeRow(spreadsheetId, sheetName, accessToken, index, updatedEmp);
         }
         await loadSheetData();
       } catch (err: any) {

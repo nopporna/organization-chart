@@ -73,66 +73,295 @@ function parseCsv(text: string): string[][] {
     .map(parseCsvLine);
 }
 
-function employeeToRow(employee: Employee): string[] {
-  return [
-    employee.id,
-    employee.name,
-    employee.nickname,
-    employee.email,
-    employee.department,
-    employee.unit,
-    employee.role,
-    employee.grade,
-    employee.reportsToId,
-    employee.photoUrl,
-    employee.historicalTitles.join('; '),
-    employee.bio,
-  ];
+const DEFAULT_HEADERS = [
+  'ID',
+  'Name',
+  'Nickname',
+  'Email',
+  'Department',
+  'Unit',
+  'Role',
+  'Grade',
+  'ReportsToID',
+  'PhotoURL',
+  'HistoricalTitles',
+  'Bio',
+] as const;
+
+type FieldKey =
+  | 'id'
+  | 'name'
+  | 'nickname'
+  | 'email'
+  | 'department'
+  | 'unit'
+  | 'role'
+  | 'grade'
+  | 'reportsToId'
+  | 'photoUrl'
+  | 'historicalTitles'
+  | 'bio';
+
+const HEADER_ALIASES: Record<FieldKey, string[]> = {
+  id: ['id'],
+  name: ['name'],
+  nickname: ['nickname', 'nick'],
+  email: ['email'],
+  department: ['department', 'dept'],
+  unit: ['unit'],
+  role: ['role', 'title', 'jobtitle', 'position'],
+  grade: ['grade', 'level'],
+  reportsToId: ['reportstoid', 'reportsto', 'managerid', 'manager'],
+  photoUrl: ['photourl', 'photo', 'avatar'],
+  historicalTitles: ['historicaltitles', 'history', 'jobhistory'],
+  bio: ['bio', 'biography', 'about'],
+};
+
+let cachedSheetHeaders: string[] = [...DEFAULT_HEADERS];
+
+function normalizeHeader(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_\-]/g, '');
 }
 
-function mapRowsToEmployees(values: string[][]): { employees: Employee[]; rawRows: string[][] } {
-  // Expected columns:
-  // A:ID B:Name C:Nickname D:Email E:Department F:Unit G:Role H:Grade I:ReportsToID J:PhotoURL K:HistoricalTitles L:Bio
+function buildColumnIndex(headers: string[]): Partial<Record<FieldKey, number>> {
+  const normalized = headers.map(normalizeHeader);
+  const index: Partial<Record<FieldKey, number>> = {};
+
+  (Object.keys(HEADER_ALIASES) as FieldKey[]).forEach((field) => {
+    for (const alias of HEADER_ALIASES[field]) {
+      const found = normalized.indexOf(alias);
+      if (found !== -1) {
+        index[field] = found;
+        break;
+      }
+    }
+  });
+
+  return index;
+}
+
+function detectLegacyLayoutWithoutUnit(headers: string[]): boolean {
+  const index = buildColumnIndex(headers);
+  // Old layout: Department then Role (no Unit column)
+  return index.department !== undefined && index.role !== undefined && index.unit === undefined;
+}
+
+function employeeToRow(employee: Employee, headers: string[] = cachedSheetHeaders): string[] {
+  const index = buildColumnIndex(headers);
+  const row = new Array(Math.max(headers.length, DEFAULT_HEADERS.length)).fill('');
+
+  const put = (field: FieldKey, value: string) => {
+    const col = index[field];
+    if (col === undefined) return;
+    row[col] = value;
+  };
+
+  put('id', employee.id);
+  put('name', employee.name);
+  put('nickname', employee.nickname);
+  put('email', employee.email);
+  put('department', employee.department);
+  put('unit', employee.unit);
+  put('role', employee.role);
+  put('grade', employee.grade);
+  put('reportsToId', employee.reportsToId);
+  put('photoUrl', employee.photoUrl);
+  put('historicalTitles', employee.historicalTitles.join('; '));
+  put('bio', employee.bio);
+
+  // Fallback for sheets that still use the fixed new layout and missing header cache
+  if (!index.id && !index.name) {
+    return [
+      employee.id,
+      employee.name,
+      employee.nickname,
+      employee.email,
+      employee.department,
+      employee.unit,
+      employee.role,
+      employee.grade,
+      employee.reportsToId,
+      employee.photoUrl,
+      employee.historicalTitles.join('; '),
+      employee.bio,
+    ];
+  }
+
+  return row.slice(0, headers.length);
+}
+
+function mapRowsToEmployees(
+  values: string[][],
+  headers: string[] = cachedSheetHeaders
+): { employees: Employee[]; rawRows: string[][] } {
+  const index = buildColumnIndex(headers);
+  const legacy = detectLegacyLayoutWithoutUnit(headers);
+
+  const read = (row: string[], field: FieldKey, fallback = ''): string => {
+    const col = index[field];
+    if (col !== undefined) {
+      return row[col] || fallback;
+    }
+
+    // Legacy fixed positions when Unit column does not exist:
+    // A:ID B:Name C:Nickname D:Email E:Department F:Role G:Grade H:ReportsToID I:PhotoURL J:HistoricalTitles K:Bio
+    if (legacy || Object.keys(index).length === 0) {
+      const legacyMap: Partial<Record<FieldKey, number>> = {
+        id: 0,
+        name: 1,
+        nickname: 2,
+        email: 3,
+        department: 4,
+        role: 5,
+        grade: 6,
+        reportsToId: 7,
+        photoUrl: 8,
+        historicalTitles: 9,
+        bio: 10,
+      };
+      // Unit appended as last column after Bio
+      if (field === 'unit' && row.length > 11) {
+        return row[11] || fallback;
+      }
+      const legacyCol = legacyMap[field];
+      return legacyCol !== undefined ? row[legacyCol] || fallback : fallback;
+    }
+
+    return fallback;
+  };
+
   const employees: Employee[] = values
     .map((row) => {
-      const id = row[0] || '';
+      const id = read(row, 'id');
       if (!id || id.toLowerCase() === 'id') return null;
 
-      const name = row[1] || '';
-      const nickname = row[2] || '';
-      const email = row[3] || '';
-      const department = row[4] || '';
-      const unit = row[5] || '';
-      const role = row[6] || '';
-      const grade = row[7] || '';
-      const reportsToId = row[8] || '';
-      const photoUrl = row[9] || '';
-
-      const rawHistory = row[10] || '';
+      const rawHistory = read(row, 'historicalTitles');
       const historicalTitles = rawHistory
         ? rawHistory.split(';').map((t) => t.trim()).filter(Boolean)
         : [];
 
-      const bio = row[11] || '';
-
       return {
         id,
-        name,
-        nickname,
-        email,
-        department,
-        unit,
-        role,
-        grade,
-        reportsToId,
-        photoUrl,
+        name: read(row, 'name'),
+        nickname: read(row, 'nickname'),
+        email: read(row, 'email'),
+        department: read(row, 'department'),
+        unit: read(row, 'unit'),
+        role: read(row, 'role'),
+        grade: read(row, 'grade'),
+        reportsToId: read(row, 'reportsToId'),
+        photoUrl: read(row, 'photoUrl'),
         historicalTitles,
-        bio,
+        bio: read(row, 'bio'),
       };
     })
     .filter((emp): emp is Employee => emp !== null);
 
   return { employees, rawRows: values };
+}
+
+function columnLetter(index: number): string {
+  let n = index + 1;
+  let label = '';
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    label = String.fromCharCode(65 + rem) + label;
+    n = Math.floor((n - 1) / 26);
+  }
+  return label;
+}
+
+async function ensureSheetHasColumns(
+  spreadsheetId: string,
+  sheetName: string,
+  accessToken: string,
+  minColumns: number
+): Promise<void> {
+  const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets(properties(sheetId,title,gridProperties(columnCount)))`;
+  const metaResponse = await fetch(metaUrl, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!metaResponse.ok) {
+    throw new Error(await formatGoogleApiError(metaResponse, 'Failed to read sheet grid size'));
+  }
+
+  const meta = await metaResponse.json();
+  const sheet = (meta.sheets || []).find(
+    (s: any) => s.properties?.title === sheetName
+  );
+  if (!sheet) return;
+
+  const currentColumns = sheet.properties?.gridProperties?.columnCount || 0;
+  if (currentColumns >= minColumns) return;
+
+  const sheetId = sheet.properties.sheetId;
+  const expandResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        requests: [
+          {
+            appendDimension: {
+              sheetId,
+              dimension: 'COLUMNS',
+              length: minColumns - currentColumns,
+            },
+          },
+        ],
+      }),
+    }
+  );
+
+  if (!expandResponse.ok) {
+    throw new Error(await formatGoogleApiError(expandResponse, 'Failed to expand sheet columns'));
+  }
+}
+
+async function ensureUnitHeader(
+  spreadsheetId: string,
+  sheetName: string,
+  accessToken: string,
+  headers: string[]
+): Promise<string[]> {
+  const index = buildColumnIndex(headers);
+  if (index.unit !== undefined) {
+    cachedSheetHeaders = headers;
+    return headers;
+  }
+
+  // Append Unit at the end so existing columns are not shifted/scrambled.
+  const nextHeaders = [...headers, 'Unit'];
+  await ensureSheetHasColumns(spreadsheetId, sheetName, accessToken, nextHeaders.length);
+
+  const unitCol = columnLetter(nextHeaders.length - 1);
+  const headerCell = `'${sheetName}'!${unitCol}1`;
+  const writeResponse = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(headerCell)}?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        range: headerCell,
+        majorDimension: 'ROWS',
+        values: [['Unit']],
+      }),
+    }
+  );
+
+  if (!writeResponse.ok) {
+    throw new Error(await formatGoogleApiError(writeResponse, 'Failed to add Unit header'));
+  }
+
+  cachedSheetHeaders = nextHeaders;
+  return nextHeaders;
 }
 
 // Read a publicly shared sheet (no Google sign-in required).
@@ -158,8 +387,10 @@ export async function fetchEmployeesFromPublicSheet(
   }
 
   const rows = parseCsv(csv);
+  const headers = rows[0] || [...DEFAULT_HEADERS];
+  cachedSheetHeaders = headers;
   const dataRows = rows.slice(1);
-  return mapRowsToEmployees(dataRows);
+  return mapRowsToEmployees(dataRows, headers);
 }
 
 // Fetch spreadsheet metadata to get the title and the first sheet's name
@@ -175,7 +406,7 @@ export async function getSpreadsheetDetails(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch spreadsheet details: ${response.statusText}`);
+    throw new Error(await formatGoogleApiError(response, 'Failed to fetch spreadsheet details'));
   }
 
   const data = await response.json();
@@ -191,10 +422,9 @@ export async function fetchEmployeesFromSheet(
   sheetName: string,
   accessToken: string
 ): Promise<{ employees: Employee[]; rawRows: string[][] }> {
-  // We fetch A2:L to skip the header row.
-  const range = `'${sheetName}'!A2:L2000`;
+  const range = `'${sheetName}'!A1:Z2000`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`;
-  
+
   const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -202,12 +432,15 @@ export async function fetchEmployeesFromSheet(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch sheet data: ${response.statusText}`);
+    throw new Error(await formatGoogleApiError(response, 'Failed to fetch sheet data'));
   }
 
   const data = await response.json();
   const values: string[][] = data.values || [];
-  return mapRowsToEmployees(values);
+  const headers = (values[0] || [...DEFAULT_HEADERS]).map((h) => String(h || '').trim());
+  cachedSheetHeaders = headers.length ? headers : [...DEFAULT_HEADERS];
+  const dataRows = values.slice(1);
+  return mapRowsToEmployees(dataRows, cachedSheetHeaders);
 }
 
 // Update the ReportsToID cell of an employee surgically
@@ -218,8 +451,11 @@ export async function updateEmployeeReportsTo(
   employeeIndexInFetchedArray: number, // index in values array (from fetchEmployeesFromSheet)
   newReportsToId: string
 ): Promise<void> {
+  const headers = await ensureUnitHeader(spreadsheetId, sheetName, accessToken, cachedSheetHeaders);
+  const index = buildColumnIndex(headers);
+  const reportsCol = index.reportsToId ?? 8;
   const rowNum = employeeIndexInFetchedArray + 2; // +2 because range starts at A2
-  const cellRange = `'${sheetName}'!I${rowNum}`; // Column I is ReportsToID
+  const cellRange = `'${sheetName}'!${columnLetter(reportsCol)}${rowNum}`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(cellRange)}?valueInputOption=USER_ENTERED`;
 
   const response = await fetch(url, {
@@ -236,7 +472,7 @@ export async function updateEmployeeReportsTo(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to update reporting line: ${response.statusText}`);
+    throw new Error(await formatGoogleApiError(response, 'Failed to update reporting line'));
   }
 }
 
@@ -248,8 +484,12 @@ export async function updateEmployeeRow(
   employeeIndexInFetchedArray: number,
   employee: Employee
 ): Promise<void> {
+  const headers = await ensureUnitHeader(spreadsheetId, sheetName, accessToken, cachedSheetHeaders);
+  await ensureSheetHasColumns(spreadsheetId, sheetName, accessToken, headers.length);
+
   const rowNum = employeeIndexInFetchedArray + 2;
-  const range = `'${sheetName}'!A${rowNum}:L${rowNum}`;
+  const endCol = columnLetter(headers.length - 1);
+  const range = `'${sheetName}'!A${rowNum}:${endCol}${rowNum}`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
 
   const response = await fetch(url, {
@@ -261,12 +501,12 @@ export async function updateEmployeeRow(
     body: JSON.stringify({
       range,
       majorDimension: 'ROWS',
-      values: [employeeToRow(employee)],
+      values: [employeeToRow(employee, headers)],
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to update employee details: ${response.statusText}`);
+    throw new Error(await formatGoogleApiError(response, 'Failed to update employee details'));
   }
 }
 
@@ -277,8 +517,12 @@ export async function addEmployeeRow(
   accessToken: string,
   employee: Employee
 ): Promise<void> {
-  const range = `'${sheetName}'!A:L`;
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
+  const headers = await ensureUnitHeader(spreadsheetId, sheetName, accessToken, cachedSheetHeaders);
+  await ensureSheetHasColumns(spreadsheetId, sheetName, accessToken, headers.length);
+
+  const endCol = columnLetter(headers.length - 1);
+  const range = `'${sheetName}'!A:${endCol}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -289,12 +533,12 @@ export async function addEmployeeRow(
     body: JSON.stringify({
       range,
       majorDimension: 'ROWS',
-      values: [employeeToRow(employee)],
+      values: [employeeToRow(employee, headers)],
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to add employee: ${response.statusText}`);
+    throw new Error(await formatGoogleApiError(response, 'Failed to add employee'));
   }
 }
 
@@ -305,8 +549,10 @@ export async function deleteEmployeeRow(
   accessToken: string,
   employeeIndexInFetchedArray: number
 ): Promise<void> {
+  const headers = cachedSheetHeaders.length ? cachedSheetHeaders : [...DEFAULT_HEADERS];
   const rowNum = employeeIndexInFetchedArray + 2;
-  const range = `'${sheetName}'!A${rowNum}:L${rowNum}`;
+  const endCol = columnLetter(Math.max(headers.length - 1, 0));
+  const range = `'${sheetName}'!A${rowNum}:${endCol}${rowNum}`;
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:clear`;
 
   const response = await fetch(url, {
@@ -317,7 +563,7 @@ export async function deleteEmployeeRow(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to clear employee row: ${response.statusText}`);
+    throw new Error(await formatGoogleApiError(response, 'Failed to clear employee row'));
   }
 }
 
